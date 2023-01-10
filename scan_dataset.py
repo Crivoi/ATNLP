@@ -1,6 +1,5 @@
-import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from enum import Enum
 from torch.nn.utils.rnn import pad_sequence
 from operator import itemgetter
@@ -25,10 +24,10 @@ class Lang:
         self.index2word = {
             SOS_token: "<SOS>",
             EOS_token: "<EOS>",
-            UNK_token: '<UNK>',
-            PAD_token: '<PAD>'}
-        self.n_words = len(self.index2word)  # Count tokens
-
+            UNK_token: "<UNK>",
+            PAD_token: "<PAD>"
+        }
+        self.n_words = len(self.index2word)
         self.max_length = 0
 
     def add_sentence(self, sentence):
@@ -75,43 +74,42 @@ class ScanDataset(Dataset):
         return len(self.y)
 
     def __getitem__(self, idx):
-
-        # Convert to list if only one sample
-        if isinstance(idx, int):
-            return [self.X[idx]], [self.y[idx]]
-        elif len(idx) == 1:
-            return [self.X[idx[0]]], [self.y[idx[0]]]
-
-        X = list(itemgetter(*idx)(self.X))
-        y = list(itemgetter(*idx)(self.y))
-
-        return X, y
+        return self.X[idx], self.y[idx]
+    # def __getitem__(self, idx):
+    #     # Convert to list if only one sample
+    #     if isinstance(idx, int):
+    #         return [self.X[idx]], [self.y[idx]]
+    #     elif len(idx) == 1:
+    #         return [self.X[idx[0]]], [self.y[idx[0]]]
+    #
+    #     X = list(itemgetter(*idx)(self.X))
+    #     y = list(itemgetter(*idx)(self.y))
+    #
+    #     return X, y
 
     def convert_to_tensor(self, X, y):
-
         for i in range(len(X)):
             X[i] = self.input_lang.tensor_from_sentence(X[i])
             y[i] = self.output_lang.tensor_from_sentence(y[i])
 
         # collate the batch
         input_tensor, target_tensor = self.collate(X, y)
-        return (input_tensor, target_tensor)
+        return input_tensor, target_tensor
 
     def convert_to_string(self, X, y):
         input_string = self.input_lang.sentence_from_indexes(X)
         target_string = self.output_lang.sentence_from_indexes(y)
-        return (input_string, target_string)
+        return input_string, target_string
 
-    def collate(self, src_batch, tgt_batch):
+    @staticmethod
+    def collate(src_batch, tgt_batch):
         """Collate a batch of data into padded sequences."""
-
         src_batch = pad_sequence(src_batch, padding_value=PAD_token, batch_first=True)
         tgt_batch = pad_sequence(tgt_batch, padding_value=PAD_token, batch_first=True)
         return src_batch, tgt_batch
 
     def _get_data(self, split: ScanSplit, split_variation=None, train: bool = True):
         """Retrieve the right data for the selected split"""
-
         if split == ScanSplit.SIMPLE_SPLIT:
             valid_variations = ['p1', 'p2', 'p4', 'p8', 'p16', 'p32', 'p64']
             if split_variation and split_variation in valid_variations:
@@ -125,44 +123,37 @@ class ScanDataset(Dataset):
                 X_train, y_train = self._extract_data_from_file('tasks_train_simple.txt', split)
                 X_test, y_test = self._extract_data_from_file('tasks_test_simple.txt', split)
         elif split == ScanSplit.LENGTH_SPLIT:
-
             X_train, y_train = self._extract_data_from_file('tasks_train_length.txt', split)
             X_test, y_test = self._extract_data_from_file('tasks_test_length.txt', split)
             valid_action_seq_len = [24, 25, 26, 27, 28, 30, 32, 33, 36, 40, 48]
             valid_command_len = [4, 6, 7, 8, 9]
-
             if split_variation in valid_action_seq_len:
                 filter_idxs = [i for i, y in enumerate(y_test) if len(y.split()) == split_variation]
                 X_test = [X_test[i] for i in filter_idxs]
                 y_test = [y_test[i] for i in filter_idxs]
-
             elif split_variation in valid_command_len:
                 filter_idxs = [i for i, x in enumerate(X_test) if len(x.split()) == split_variation]
                 X_test = [X_test[i] for i in filter_idxs]
                 y_test = [y_test[i] for i in filter_idxs]
-
             elif split_variation:
                 raise Exception('Split variation must be an integer')
-
         elif split == ScanSplit.ADD_PRIM_SPLIT:
             valid_variations = ['jump', 'turn_left']
             if split_variation and split_variation in valid_variations:
                 X_train, y_train = self._extract_data_from_file(f'tasks_train_addprim_{split_variation}.txt', split)
                 X_test, y_test = self._extract_data_from_file(f'tasks_test_addprim_{split_variation}.txt', split)
             else:
-                raise Exception(
-                    f'A valid split variation must be provided for this split. Valid variations are: {valid_variations}')
+                raise Exception(f'A valid split variation must be provided for this split. '
+                                f'Valid variations are: {valid_variations}')
         else:
             raise Exception('Split not implemented')
 
         if train:
             X = X_train
             y = y_train
-
             # Add words to vocabs
             for sen in X:
                 self.input_lang.add_sentence(sen)
-
             for sen in y:
                 self.output_lang.add_sentence(sen)
         else:
@@ -171,7 +162,8 @@ class ScanDataset(Dataset):
 
         return X, y
 
-    def _extract_data_from_file(self, filepath: str, split: ScanSplit):
+    @staticmethod
+    def _extract_data_from_file(filepath: str, split: ScanSplit):
         """Get X and y from SCAN file"""
         with open(f'SCAN/{split.value}/{filepath}') as f:
             txt_data = f.readlines()

@@ -1,11 +1,13 @@
-import scan_dataset
-import models
-import pipeline
 import torch
-from matplotlib import pyplot as plt
 import wandb
+import pipeline
 import numpy as np
+import scan_dataset
+import rnn_models as models
 
+from config import overall_best
+from matplotlib import pyplot as plt
+from config import experiment_2_best as experiment_best
 
 input_lang = scan_dataset.Lang()
 output_lang = scan_dataset.Lang()
@@ -26,23 +28,8 @@ test_dataset = scan_dataset.ScanDataset(
 
 MAX_LENGTH = max(train_dataset.input_lang.max_length, train_dataset.output_lang.max_length)
 
+dump = False
 n_iter = 100
-
-overall_best = {
-    'HIDDEN_SIZE': 200,  # 25, 50, 100, 200, or 400
-    'RNN_TYPE': 'LSTM',  # RNN, GRU or LSTM
-    'N_LAYERS': 2,  # 1 or 2
-    'DROPOUT': 0.5,  # 0, 0.1 or 0.5
-    'ATTENTION': False,  # True or False
-}
-
-experiment_best = {
-    'HIDDEN_SIZE': 200,
-    'RNN_TYPE': 'LSTM',
-    'N_LAYERS': 2,
-    'DROPOUT': 0,
-    'ATTENTION': False,
-}
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
@@ -59,9 +46,9 @@ for _ in range(5):
     decoder = models.DecoderRNN(train_dataset.output_lang.n_words, overall_best['HIDDEN_SIZE'],
                                 overall_best['N_LAYERS'], overall_best['RNN_TYPE'], overall_best['DROPOUT'],
                                 overall_best['ATTENTION']).to(device)
-
-    encoder, decoder = pipeline.train(train_dataset, encoder, decoder, n_iter, print_every=100, learning_rate=0.001,
-                                      device=device)
+    if dump:
+        encoder, decoder = pipeline.train(train_dataset, encoder, decoder, n_iter, print_every=100, learning_rate=0.001,
+                                          device=device)
     results.append(
         pipeline.evaluate(test_dataset, encoder, decoder, max_length=MAX_LENGTH, verbose=False, device=device))
 

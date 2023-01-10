@@ -1,5 +1,5 @@
 import scan_dataset
-import models
+import rnn_models
 import pipeline
 import torch
 from matplotlib import pyplot as plt

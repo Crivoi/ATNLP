@@ -10,8 +10,9 @@ import wandb
 
 teacher_forcing_ratio = .5
 
-def train_iteration(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion,
-                    device='cpu'):
+
+def train_iteration(input_tensor, target_tensor, encoder, decoder, encoder_optimizer,
+                    decoder_optimizer, criterion, device='cpu'):
     """A single training iteration."""
     # Reset the gradients and loss
     encoder_optimizer.zero_grad()
@@ -26,20 +27,17 @@ def train_iteration(input_tensor, target_tensor, encoder, decoder, encoder_optim
     encoder_hidden, all_encoder_hidden = encoder(input_tensor)
 
     # Prepare the initial decoder input
-    decoder_input = torch.tensor([[scan_dataset.SOS_token]* batch_size], device=device).transpose(0, 1)
+    decoder_input = torch.tensor([[scan_dataset.SOS_token] * batch_size], device=device).transpose(0, 1)
 
     decoder_hidden = encoder_hidden
 
     use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
 
     for di in range(target_length):
-
         # Decode next token
         decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden, all_encoder_hidden)
-
         # Calculate loss
         loss += criterion(decoder_output, target_tensor[:, di])
-
         # If teacher forcing is used, the next input is the target
         # Otherwise, the next input is the output with the highest probability
         if use_teacher_forcing:
@@ -49,7 +47,7 @@ def train_iteration(input_tensor, target_tensor, encoder, decoder, encoder_optim
             decoder_input = topi.detach()  # detach from history as input
 
     loss.backward()
-    
+
     nn.utils.clip_grad_norm_(encoder.parameters(), 5.0)
     nn.utils.clip_grad_norm_(decoder.parameters(), 5.0)
 
@@ -89,10 +87,8 @@ def train(dataset, encoder, decoder, n_iters, device='cpu', print_every=1000, pl
             print('%d (%d%%): %.4f' % (iteration, iteration / n_iters * 100, print_loss_avg))
 
         if iteration % plot_every == 0:
-
             plot_loss_avg = plot_loss_total / plot_every
             plot_losses.append(plot_loss_avg)
-
             if log_wandb:
                 wandb.log({"avg_loss": plot_loss_avg})
             plot_loss_total = 0
@@ -106,9 +102,9 @@ def train(dataset, encoder, decoder, n_iters, device='cpu', print_every=1000, pl
 def evaluate(dataset, encoder, decoder, max_length, device='cpu', verbose=False):
     encoder.eval()
     decoder.eval()
-    
-    n_correct = [] # number of correct predictions
-    
+
+    n_correct = []  # number of correct predictions
+
     with torch.no_grad():
         for input_tensor, target_tensor in tqdm(dataset, total=len(dataset), leave=False, desc="Evaluating"):
             input_tensor, target_tensor = dataset.convert_to_tensor(input_tensor, target_tensor)
@@ -119,7 +115,7 @@ def evaluate(dataset, encoder, decoder, max_length, device='cpu', verbose=False)
             decoder_input = torch.tensor([[scan_dataset.SOS_token]], device=device)
 
             decoder_hidden = encoder_hidden
-            
+
             target_length = target_tensor.size(0)
 
             for di in range(target_length):
@@ -145,7 +141,7 @@ def evaluate(dataset, encoder, decoder, max_length, device='cpu', verbose=False)
     accuracy = np.mean(n_correct)
     if verbose:
         print("Accuracy", accuracy)
-        
+
     encoder.train()
     decoder.train()
 
@@ -171,19 +167,18 @@ def oracle_eval(dataset, encoder, decoder, device='cpu', verbose=False):
 
             target_length = target_tensor.size(0)
 
-            for di in range(target_length-1):
-                
+            for di in range(target_length - 1):
+
                 decoder_output, decoder_hidden = decoder(
                     decoder_input, decoder_hidden, all_encoder_hidden)
 
                 topv, topi = decoder_output.topk(1)
                 decoder_input = topi.detach()  # detach from history as input
 
-            
                 if decoder_input.item() == scan_dataset.EOS_token:
                     topv, topi = decoder_output.topk(2)
                     decoder_input = topi[:, 1].detach().unsqueeze(0)  # detach from history as input
-                    
+
                 pred.append(decoder_input.squeeze().item())
 
             pred = np.array(pred)
@@ -197,5 +192,5 @@ def oracle_eval(dataset, encoder, decoder, device='cpu', verbose=False):
     accuracy = np.mean(n_correct)
     if verbose:
         print("Accuracy", accuracy)
-    
+
     return accuracy

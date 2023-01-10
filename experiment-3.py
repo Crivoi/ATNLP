@@ -1,17 +1,9 @@
-from collections import defaultdict
-
-from torch.utils.data import DataLoader
-
-import scan_dataset
-import models
-import pipeline
 import torch
 import wandb
-import os
-from matplotlib import pyplot as plt
-import numpy as np
 import pickle
-from tqdm import tqdm
+import pipeline
+import scan_dataset
+import rnn_models as models
 
 log_wandb = False
 
