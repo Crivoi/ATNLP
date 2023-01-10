@@ -102,7 +102,6 @@ class ScanDataset(Dataset):
         target_string = self.output_lang.sentence_from_indexes(y)
         return (input_string, target_string)
 
-
     def collate(self, src_batch, tgt_batch):
         """Collate a batch of data into padded sequences."""
 
