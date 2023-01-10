@@ -1,33 +1,21 @@
-from collections import defaultdict
-
-from torch.utils.data import DataLoader
-
 import attn_md
 import scan_dataset
 import models
-import models2
 import pipeline
 import torch
 import wandb
-import os
-from matplotlib import pyplot as plt
-import numpy as np
 import pickle
-from tqdm import tqdm
 
 log_wandb = False
 # log_wandb = True
 
-# n_iter = 5100
 n_iter = 100000
-# n_runs = 5
 n_runs = 5
 
-print("has cuda?",torch.cuda.is_available())
+print("has cuda?", torch.cuda.is_available())
 # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 device = torch.device('cpu')
 print(f'Using device: {device}')
-
 
 input_lang = scan_dataset.Lang()
 output_lang = scan_dataset.Lang()
@@ -49,9 +37,7 @@ test_dataset = scan_dataset.ScanDataset(
 )
 
 MAX_LENGTH = max(train_dataset.input_lang.max_length, train_dataset.output_lang.max_length)
-max_length=MAX_LENGTH
-
-
+max_length = MAX_LENGTH
 
 overall_best = {
     'HIDDEN_SIZE': 200,  # 25, 50, 100, 200, or 400
@@ -68,7 +54,6 @@ experiment_best = {
     'DROPOUT': 0.5,  # 0, 0.1 or 0.5
     'ATTENTION': True,  # True or False
 }
-
 
 
 def run_overall_best():
@@ -98,7 +83,8 @@ def run_experiment_best():
     results = []
     # Train 5 times and average the results
     for run in range(n_runs):
-        encoder = models.EncoderRNN(train_dataset.input_lang.n_words, experiment_best['HIDDEN_SIZE'], MAX_LENGTH, device,
+        encoder = models.EncoderRNN(train_dataset.input_lang.n_words, experiment_best['HIDDEN_SIZE'], MAX_LENGTH,
+                                    device,
                                     experiment_best['N_LAYERS'], experiment_best['RNN_TYPE'],
                                     experiment_best['DROPOUT']).to(device)
         decoder = models.DecoderRNN(train_dataset.output_lang.n_words, experiment_best['HIDDEN_SIZE'],
@@ -116,7 +102,7 @@ def run_experiment_best():
         acc = pipeline.evaluate(test_dataset, encoder, decoder, max_length=MAX_LENGTH, verbose=False)
         results.append(acc)
         print(f'Accuracy for run {run}: {acc}')
-        
+
     avg_accuracy = sum(results) / len(results)
     print('Average accuracy for experiment best: {}'.format(avg_accuracy))
     if log_wandb:
@@ -127,13 +113,12 @@ def run_experiment_best_d2i():
     results = []
     # Train 5 times and average the results
     for _ in range(n_runs):
-
         encoder = models.EncoderRNN(train_dataset.input_lang.n_words, experiment_best['HIDDEN_SIZE'], device,
                                     experiment_best['N_LAYERS'], experiment_best['RNN_TYPE'],
                                     experiment_best['DROPOUT']).to(device)
-        decoder= attn_md.BahdanauAttnDecoderRNN(experiment_best['HIDDEN_SIZE'],
-                                                train_dataset.output_lang.n_words,
-                                                MAX_LENGTH,experiment_best['N_LAYERS'],dropout_p=0.5)
+        decoder = attn_md.BahdanauAttnDecoderRNN(experiment_best['HIDDEN_SIZE'],
+                                                 train_dataset.output_lang.n_words,
+                                                 MAX_LENGTH, experiment_best['N_LAYERS'], dropout_p=0.5)
         # decoder = models.DecoderRNN(train_dataset.output_lang.n_words, experiment_best['HIDDEN_SIZE'],
         #                             experiment_best['N_LAYERS'], experiment_best['RNN_TYPE'],
         #                             experiment_best['DROPOUT'],

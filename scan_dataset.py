@@ -6,6 +6,7 @@ from enum import Enum
 SOS_token = 0
 EOS_token = 1
 OOV_token = 2
+PAD_token = 3
 
 
 class ScanSplit(Enum):
@@ -16,10 +17,15 @@ class ScanSplit(Enum):
 
 
 class Lang:
+    SOS_token = SOS_token
+    EOS_token = EOS_token
+    OOV_token = OOV_token
+    PAD_token = OOV_token
+
     def __init__(self):
         self.word2index = {}
         self.word2count = {}
-        self.index2word = {SOS_token: "SOS", EOS_token: "EOS", OOV_token: 'OOV'}
+        self.index2word = {self.SOS_token: "<SOS>", self.EOS_token: "<EOS>", self.OOV_token: "<OOV>"}
         self.n_words = len(self.index2word)  # Count tokens
 
         self.max_length = 0
@@ -73,12 +79,12 @@ class ScanDataset(Dataset):
     def convert_to_tensor(self, X, y):
         input_tensor = self.input_lang.tensor_from_sentence(X)
         target_tensor = self.output_lang.tensor_from_sentence(y)
-        return (input_tensor, target_tensor)
+        return input_tensor, target_tensor
 
     def convert_to_string(self, X, y):
         input_string = self.input_lang.sentence_from_indexes(X)
         target_string = self.output_lang.sentence_from_indexes(y)
-        return (input_string, target_string)
+        return input_string, target_string
 
     def _get_data(self, split: ScanSplit, split_variation=None, train: bool = True):
         """Retrieve the right data for the selected split"""
@@ -142,7 +148,8 @@ class ScanDataset(Dataset):
 
         return X, y
 
-    def _extract_data_from_file(self, filepath: str, split: ScanSplit):
+    @staticmethod
+    def _extract_data_from_file(filepath: str, split: ScanSplit):
         """Get X and y from SCAN file"""
         with open(f'SCAN/{split.value}/{filepath}') as f:
             txt_data = f.readlines()
