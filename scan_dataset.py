@@ -20,7 +20,7 @@ class Lang:
     SOS_token = SOS_token
     EOS_token = EOS_token
     OOV_token = OOV_token
-    PAD_token = OOV_token
+    PAD_token = PAD_token
 
     def __init__(self):
         self.word2index = {}

@@ -50,7 +50,7 @@ def train_iteration(input_tensor, target_tensor, encoder, decoder, encoder_optim
             break
 
     loss.backward()
-    
+
     nn.utils.clip_grad_norm_(encoder.parameters(), 5.0)
     nn.utils.clip_grad_norm_(decoder.parameters(), 5.0)
 
@@ -105,9 +105,9 @@ def train(dataset, encoder, decoder, n_iters, device='cpu', print_every=1000, pl
 def evaluate(dataset, encoder, decoder, max_length, device='cpu', verbose=False):
     encoder.eval()
     decoder.eval()
-    
-    n_correct = [] # number of correct predictions
-    
+
+    n_correct = []  # number of correct predictions
+
     with torch.no_grad():
         for input_tensor, target_tensor in tqdm(dataset, total=len(dataset), leave=False, desc="Evaluating"):
             input_tensor, target_tensor = dataset.convert_to_tensor(input_tensor, target_tensor)
@@ -120,7 +120,7 @@ def evaluate(dataset, encoder, decoder, max_length, device='cpu', verbose=False)
             decoder_input = torch.tensor([[scan_dataset.SOS_token]], device=device)
 
             decoder_hidden = encoder_hidden
-            
+
             target_length = target_tensor.size(0)
 
             for di in range(target_length):
@@ -146,7 +146,7 @@ def evaluate(dataset, encoder, decoder, max_length, device='cpu', verbose=False)
     accuracy = np.mean(n_correct)
     if verbose:
         print("Accuracy", accuracy)
-        
+
     encoder.train()
     decoder.train()
 
@@ -172,20 +172,18 @@ def oracle_eval(dataset, encoder, decoder, device='cpu', verbose=False):
 
             decoder_hidden = encoder_hidden
 
-            for di in range(target_length-1):
-                
+            for di in range(target_length - 1):
+
                 decoder_output, decoder_hidden = decoder(
                     decoder_input, decoder_hidden, encoder.all_hidden_states)
 
                 topv, topi = decoder_output.topk(1)
                 decoder_input = topi.squeeze().detach()  # detach from history as input
 
-                
-
                 if decoder_input.item() == scan_dataset.EOS_token:
                     topv, topi = decoder_output.topk(2)
                     decoder_input = topi.squeeze()[1].detach()  # detach from history as input
-                    
+
                 pred.append(decoder_input.item())
 
             pred = np.array(pred)
@@ -199,5 +197,5 @@ def oracle_eval(dataset, encoder, decoder, device='cpu', verbose=False):
     accuracy = np.mean(n_correct)
     if verbose:
         print("Accuracy", accuracy)
-    
+
     return accuracy
