@@ -103,6 +103,9 @@ class TransformerModel(nn.Module):
     def forward(self, input_ids, labels):
         return self.transformer(input_ids=input_ids, labels=labels)
 
+    def to(self, device):
+        self.transformer.to(device)
+
     def generate(self, input_tensor, oracle_length):
         max_length = 50
         min_length = 1

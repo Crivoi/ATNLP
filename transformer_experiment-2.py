@@ -13,7 +13,7 @@ from ATNLP.transformer_pipeline import TransformerTrainer
 
 os.environ["WANDB_DISABLED"] = "true"
 
-num_epochs = 1000
+num_epochs = 3
 batch_size = 32
 
 input_lang = TransformerLang()
@@ -77,7 +77,7 @@ def main():
     trainer = TransformerTrainer(model, train_dataset, test_dataset)
     save = num_epochs >= 10
     trainer.train(num_epochs, save=save)
-    print(trainer.evaluate())
+    # print(trainer.evaluate())
 
 
 if __name__ == '__main__':

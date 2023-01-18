@@ -10,6 +10,8 @@ from ATNLP import helper
 from ATNLP.transformer_dataset import TransformerDataset
 from ATNLP.transformer_models import TransformerModel
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class TransformerTrainer:
     batch_size = 64
@@ -28,6 +30,9 @@ class TransformerTrainer:
 
         self.optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
         self.loss_fn = torch.nn.CrossEntropyLoss(ignore_index=train_dataset.input_lang.PAD_token)
+
+        self.model.to(device)
+        print(f'Device: {device}')
 
     def train_iteration(self, input_tensor, target_tensor):
         """A single training iteration."""
@@ -57,7 +62,8 @@ class TransformerTrainer:
             batch = np.random.choice(len(self.train_dataset), self.batch_size)
             X, y = self.train_dataset[batch]
             input_tensor, target_tensor = self.train_dataset.convert_to_tensor(X, y)
-
+            input_tensor.to(device)
+            target_tensor.to(device)
             loss = self.train_iteration(input_tensor, target_tensor)
 
             # print_loss_total += loss
