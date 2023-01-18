@@ -1,19 +1,18 @@
+from collections import defaultdict
+
+from torch.utils.data import DataLoader
+import scan_dataset
+import models
+import pipeline
 import torch
 import wandb
-import pickle
-import pipeline
-import numpy as np
-import scan_dataset
-import rnn_models as models
-
-from tqdm import tqdm
-from config import overall_best
-from collections import defaultdict
+import os
 from matplotlib import pyplot as plt
-from config import experiment_1_best as experiment_best
+import numpy as np
+import pickle
+from tqdm import tqdm
 
 log_wandb = False
-dump = False
 
 input_lang = scan_dataset.Lang()
 output_lang = scan_dataset.Lang()
@@ -34,8 +33,24 @@ test_dataset = scan_dataset.ScanDataset(
 
 MAX_LENGTH = max(train_dataset.input_lang.max_length, train_dataset.output_lang.max_length)
 
-n_iter = 1000
+n_iter = 10000
 n_runs = 1
+
+overall_best = {
+    'HIDDEN_SIZE': 200,  # 25, 50, 100, 200, or 400
+    'RNN_TYPE': 'LSTM',  # RNN, GRU or LSTM
+    'N_LAYERS': 2,  # 1 or 2
+    'DROPOUT': 0.5,  # 0, 0.1 or 0.5
+    'ATTENTION': False,  # True or False
+}
+
+experiment_best = {
+    'HIDDEN_SIZE': 50,  # 25, 50, 100, 200, or 400
+    'RNN_TYPE': 'GRU',  # RNN, GRU or LSTM
+    'N_LAYERS': 1,  # 1 or 2
+    'DROPOUT': 0.5,  # 0, 0.1 or 0.5
+    'ATTENTION': True,  # True or False
+}
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
@@ -43,6 +58,7 @@ print(f'Using device: {device}')
 
 def run_overall_best():
     results = []
+    # Train 5 times and average the results
     for run in range(n_runs):
         encoder = models.EncoderRNN(train_dataset.input_lang.n_words, overall_best['HIDDEN_SIZE'], device=device,
                                     n_layers=overall_best['N_LAYERS'], rnn_type=overall_best['RNN_TYPE'],
@@ -54,35 +70,33 @@ def run_overall_best():
 
         encoder, decoder = pipeline.train(train_dataset, encoder, decoder, n_iter, print_every=100, learning_rate=0.001,
                                           device=device, log_wandb=log_wandb)
-        if dump:
-            pickle.dump(encoder, open(f'runs/overall_best_encoder_exp_2_run_{run}.sav', 'wb'))
-            pickle.dump(decoder, open(f'runs/overall_best_decoder_exp_2_run_{run}.sav', 'wb'))
+        pickle.dump(encoder, open(f'runs/overall_best_encoder_exp_2_run_{run}.sav', 'wb'))
+        pickle.dump(decoder, open(f'runs/overall_best_decoder_exp_2_run_{run}.sav', 'wb'))
         results.append(pipeline.evaluate(test_dataset, encoder, decoder, max_length=MAX_LENGTH, verbose=False))
 
     avg_accuracy = sum(results) / len(results)
     print('Average accuracy for overall best: {}'.format(avg_accuracy))
-
     if log_wandb:
         wandb.run.summary["Average accuracy for overall best"] = avg_accuracy
 
 
 def run_experiment_best():
     results = []
+    # Train 5 times and average the results
     for run in range(n_runs):
-        encoder = models.EncoderRNN(input_size=train_dataset.input_lang.n_words,
-                                    hidden_size=experiment_best['HIDDEN_SIZE'],
-                                    device=device, n_layers=experiment_best['N_LAYERS'],
-                                    rnn_type=experiment_best['RNN_TYPE'],
-                                    dropout_p=experiment_best['DROPOUT']).to(device)
+        encoder = models.EncoderRNN(train_dataset.input_lang.n_words, experiment_best['HIDDEN_SIZE'], MAX_LENGTH,
+                                    device,
+                                    experiment_best['N_LAYERS'], experiment_best['RNN_TYPE'],
+                                    experiment_best['DROPOUT']).to(device)
         decoder = models.DecoderRNN(train_dataset.output_lang.n_words, experiment_best['HIDDEN_SIZE'],
                                     experiment_best['N_LAYERS'], experiment_best['RNN_TYPE'],
                                     experiment_best['DROPOUT'],
                                     experiment_best['ATTENTION'], max_length=MAX_LENGTH).to(device)
+
         encoder, decoder = pipeline.train(train_dataset, encoder, decoder, n_iter, print_every=100, learning_rate=0.001,
                                           device=device, log_wandb=log_wandb)
-        if dump:
-            pickle.dump(encoder, open(f'runs/experiment_best_encoder_exp_2_run_{run}.sav', 'wb'))
-            pickle.dump(decoder, open(f'runs/experiment_best_decoder_exp_2_run_{run}.sav', 'wb'))
+        pickle.dump(encoder, open(f'runs/experiment_best_encoder_exp_2_run_{run}.sav', 'wb'))
+        pickle.dump(decoder, open(f'runs/experiment_best_decoder_exp_2_run_{run}.sav', 'wb'))
         acc = pipeline.evaluate(test_dataset, encoder, decoder, max_length=MAX_LENGTH, verbose=False)
         print(acc)
         results.append(acc)
@@ -94,14 +108,12 @@ def run_experiment_best():
 
 
 def length_generalization(splits, x_label='Ground-truth action sequence length', plot_title='Sequence length',
-                          oracle=False, experiment_best=False):
+                          oracle=False):
     results = defaultdict(list)
 
     for i in range(n_runs):
-        encoder = pickle.load(
-            open(f'runs/{"experiment" if experiment_best else "overall"}_best_encoder_exp_2_run_{i}.sav', 'rb'))
-        decoder = pickle.load(
-            open(f'runs/{"experiment" if experiment_best else "overall"}_best_decoder_exp_2_run_{i}.sav', 'rb'))
+        encoder = pickle.load(open(f'runs/overall_best_encoder_exp_2_run_{i}.sav', 'rb'))
+        decoder = pickle.load(open(f'runs/overall_best_decoder_exp_2_run_{i}.sav', 'rb'))
 
         # Evaluate on various lengths
         for split in splits:
@@ -151,10 +163,10 @@ def length_generalization(splits, x_label='Ground-truth action sequence length',
         print('Split: {}, Accuracy: {}'.format(split, sum(result) / len(result)))
 
 
-def test_sequence_length(oracle=False, experiment_best=False):
+def test_sequence_length(oracle=False):
     # Test how generalization works for different lengths
     splits = [24, 25, 26, 27, 28, 30, 32, 33, 36, 40, 48]
-    length_generalization(splits, oracle=oracle, experiment_best=experiment_best)
+    length_generalization(splits, oracle=oracle)
 
 
 def test_command_length():
@@ -237,14 +249,12 @@ def inspect_greedy_search(experiment_best=False):
         f'Average amount of greedy search being greater than truth for {"experiment" if experiment_best else "overall"} best: {avg_greedy_greatest}')
 
 
-def oracle_test(experiment_best=False):
+def oracle_test():
     results = []
 
     for i in range(5):  # n_runs
-        encoder = pickle.load(
-            open(f'runs/{"experiment" if experiment_best else "overall"}_best_encoder_exp_2_run_{i}.sav', 'rb'))
-        decoder = pickle.load(
-            open(f'runs/{"experiment" if experiment_best else "overall"}_best_decoder_exp_2_run_{i}.sav', 'rb'))
+        encoder = pickle.load(open(f'runs/overall_best_encoder_exp_2_run_{i}.sav', 'rb'))
+        decoder = pickle.load(open(f'runs/overall_best_decoder_exp_2_run_{i}.sav', 'rb'))
 
         test_dataset = scan_dataset.ScanDataset(
             split=scan_dataset.ScanSplit.LENGTH_SPLIT,
@@ -257,7 +267,7 @@ def oracle_test(experiment_best=False):
 
         results.append(accuracy)
 
-    print(f'Oracle Accuracy for {"experiment" if experiment_best else "overall"} best: {np.mean(results)}')
+    print('Oracle Accuracy: {}'.format(np.mean(results)))
 
 
 def main():
@@ -266,16 +276,15 @@ def main():
         wandb.login()
         wandb.init(project="experiment-2", entity="atnlp")
 
-    run_overall_best()
-    # run_experiment_best()
+    # run_overall_best()
+    run_experiment_best()
     # test_sequence_length()
     # test_command_length()
 
     # inspect_greedy_search(experiment_best=True)
     # inspect_greedy_search(experiment_best=False)
     # oracle_test()
-    # oracle_test(experiment_best=True)
-    # test_sequence_length(oracle=True, experiment_best=True)
+    # test_sequence_length(oracle=True)
 
 
 if __name__ == '__main__':
