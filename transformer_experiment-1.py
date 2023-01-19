@@ -14,20 +14,20 @@ from transformer_pipeline import TransformerTrainer
 
 os.environ["WANDB_DISABLED"] = "true"
 
-num_iters = 5000
+num_iters = 10
 
 input_lang = TransformerLang()
 output_lang = TransformerLang()
 
 train_dataset = TransformerDataset(
-    split=ScanSplit.LENGTH_SPLIT,
+    split=ScanSplit.SIMPLE_SPLIT,
     input_lang=input_lang,
     output_lang=output_lang,
     train=True
 )
 
 test_dataset = TransformerDataset(
-    split=ScanSplit.LENGTH_SPLIT,
+    split=ScanSplit.SIMPLE_SPLIT,
     input_lang=input_lang,
     output_lang=output_lang,
     train=False
@@ -38,11 +38,20 @@ loss_fn = torch.nn.CrossEntropyLoss(ignore_index=input_lang.PAD_token)
 model = TransformerModel()
 
 
-def experiment_generalization(splits, title='sequence_length'):
+def experiment_generalization(splits, title='Percent_of_commands_used_for_training'):
     results = defaultdict(list)
+
     for split in splits:
+        train_dataset = TransformerDataset(
+            split=ScanSplit.SIMPLE_SPLIT,
+            split_variation=split,
+            input_lang=input_lang,
+            output_lang=output_lang,
+            train=True
+        )
+
         test_dataset = TransformerDataset(
-            split=ScanSplit.LENGTH_SPLIT,
+            split=ScanSplit.SIMPLE_SPLIT,
             split_variation=split,
             input_lang=input_lang,
             output_lang=output_lang,
@@ -68,16 +77,10 @@ def experiment_generalization(splits, title='sequence_length'):
     bar_plot(splits, mean_results, std_results, title=title.replace('_', ' '))
 
 
-def test_sequence_length(oracle=False):
+def test_percent_commands(oracle=False):
     # Test how generalization works for different lengths
-    splits = [24, 25, 26, 27, 28, 30, 32, 33, 36, 40, 48]
+    splits = ['p1', 'p2', 'p4', 'p8', 'p16', 'p32', 'p64']
     experiment_generalization(splits)
-
-
-def test_command_length():
-    # Test how generalization works for different command lengths
-    splits = [4, 6, 7, 8, 9]
-    experiment_generalization(splits, title='command_length')
 
 
 def report_gpu():
@@ -88,14 +91,13 @@ def report_gpu():
 def main():
     report_gpu()
 
-    model_path = f'model_{num_iters}.pth'
+    model_path = f'model_{num_iters}_exp_1.pth'
     save = num_iters >= 100
 
     def _eval(trainer):
         accuracy = trainer.evaluate()
         print(f'Test accuracy: {accuracy}')
-        test_sequence_length()
-        test_command_length()
+        test_percent_commands()
 
     if save:
         try:

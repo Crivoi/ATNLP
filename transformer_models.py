@@ -6,12 +6,16 @@ from transformers import T5ForConditionalGeneration, T5Config
 
 from scan_dataset import PAD_token, SOS_token, EOS_token
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class TransformerModel(nn.Module):
 
     def __init__(self) -> None:
         super().__init__()
-        self.transformer = T5ForConditionalGeneration.from_pretrained('t5-base')
+        self.transformer = T5ForConditionalGeneration.from_pretrained('t5-small')
+        self.transformer.to(device)
+        print(f'Device: {device}')
 
     def forward(self, input_ids, labels):
         return self.transformer(input_ids=input_ids, labels=labels)

@@ -197,7 +197,7 @@ def inspect_greedy_search(experiment_best=False):
         results.append([])
 
         with torch.no_grad():
-            for input_tensor, target_tensor in tqdm(test_dataset, total=len(test_dataset), leave=False,
+            for input_tensor, target_tensor in tqdm(test_dataset, total=len(test_dataset),
                                                     desc="Inspecting"):
                 input_tensor, target_tensor = test_dataset.convert_to_tensor(input_tensor, target_tensor)
 

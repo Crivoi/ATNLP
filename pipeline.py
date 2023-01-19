@@ -73,7 +73,7 @@ def train(dataset, encoder, decoder, n_iters, device='cpu', print_every=1000, pl
     decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate)
     criterion = nn.NLLLoss()
 
-    for iteration in tqdm(range(1, n_iters + 1), total=n_iters, leave=False, desc="Training"):
+    for iteration in tqdm(range(1, n_iters + 1), total=n_iters, desc="Training"):
         X, y = dataset[random.randrange(len(dataset))]
         input_tensor, target_tensor = dataset.convert_to_tensor(X, y)
 

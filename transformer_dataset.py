@@ -26,14 +26,16 @@ class TransformerDataset(ScanDataset):
     output_lang: TransformerLang
 
     def __getitem__(self, idx):
-        # Convert to list if only one sample
         if isinstance(idx, int):
             return [self.X[idx]], [self.y[idx]]
         elif len(idx) == 1:
             return [self.X[idx[0]]], [self.y[idx[0]]]
 
-        X = list(itemgetter(*idx)(self.X))
-        y = list(itemgetter(*idx)(self.y))
+        def _getter(x: list):
+            return list(itemgetter(*idx)(x))
+
+        X = _getter(self.X)
+        y = _getter(self.y)
 
         return X, y
 
@@ -53,6 +55,4 @@ class TransformerDataset(ScanDataset):
     def collate(self, src_batch, tgt_batch):
         src_batch = pad_sequence(src_batch, padding_value=self.input_lang.PAD_token, batch_first=True)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.output_lang.PAD_token, batch_first=True)
-        # src_batch.to(device)
-        # tgt_batch.to(device)
         return src_batch, tgt_batch
