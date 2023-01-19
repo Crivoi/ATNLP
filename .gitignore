@@ -6,3 +6,4 @@ wandb
 SCAN/
 __pycache__/
 *.sav
+/SCAN/
