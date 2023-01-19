@@ -14,7 +14,7 @@ from transformer_pipeline import TransformerTrainer
 
 os.environ["WANDB_DISABLED"] = "true"
 
-num_iters = 10
+num_iters = 100
 
 input_lang = TransformerLang()
 output_lang = TransformerLang()
@@ -78,7 +78,6 @@ def experiment_generalization(splits, title='Percent_of_commands_used_for_traini
 
 
 def test_percent_commands(oracle=False):
-    # Test how generalization works for different lengths
     splits = ['p1', 'p2', 'p4', 'p8', 'p16', 'p32', 'p64']
     experiment_generalization(splits)
 
