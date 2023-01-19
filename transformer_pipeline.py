@@ -1,20 +1,20 @@
-from datetime import datetime
-
+import helper
 import numpy as np
 import torch
 import torch.nn as nn
+
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from datetime import datetime
 
-from ATNLP import helper
-from ATNLP.transformer_dataset import TransformerDataset
-from ATNLP.transformer_models import TransformerModel
+from transformer_dataset import TransformerDataset
+from transformer_models import TransformerModel
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class TransformerTrainer:
-    batch_size = 64
+    batch_size = 1
     save_dir = './transformer_models'
 
     def __init__(self,
@@ -62,8 +62,6 @@ class TransformerTrainer:
             batch = np.random.choice(len(self.train_dataset), self.batch_size)
             X, y = self.train_dataset[batch]
             input_tensor, target_tensor = self.train_dataset.convert_to_tensor(X, y)
-            input_tensor.to(device)
-            target_tensor.to(device)
             loss = self.train_iteration(input_tensor, target_tensor)
 
             # print_loss_total += loss

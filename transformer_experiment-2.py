@@ -1,20 +1,16 @@
 import os
-
+import gc
 import torch
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader
-from tqdm import tqdm
-from transformers import TrainingArguments, Trainer, T5ForConditionalGeneration, AutoModelForSeq2SeqLM
 
-from ATNLP.transformer_dataset import TransformerDataset, TransformerLang
-from ATNLP.scan_dataset import ScanSplit
-from ATNLP.transformer_models import TransformerModel
-from ATNLP.transformer_pipeline import TransformerTrainer
+from scan_dataset import ScanSplit
+from transformer_dataset import TransformerDataset, TransformerLang
+from transformer_models import TransformerModel
+from transformer_pipeline import TransformerTrainer
 
 os.environ["WANDB_DISABLED"] = "true"
 
-num_epochs = 3
-batch_size = 32
+num_epochs = 10
 
 input_lang = TransformerLang()
 output_lang = TransformerLang()
@@ -51,29 +47,21 @@ def collate(batch):
     # return src_batch, tgt_batch
 
 
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate)
+# train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate)
+# test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate)
 
 loss_fn = torch.nn.CrossEntropyLoss(ignore_index=input_lang.PAD_token)
 
 model = TransformerModel()
 
 
-def main():
-    # optim = torch.optim.Adam(model.parameters(), lr=0.0001)
-    # model.train()
-    # for epoch in range(num_epochs):
-    #     for input_tensor, target_tensor in tqdm(train_loader):
-    #         optim.zero_grad()
-    #         # input_tensor, target_tensor = train_dataset.convert_to_tensor(X, y)
-    #         # input_ids = batch['input_ids']
-    #         # attention_mask = batch['attention_mask']
-    #         # labels = batch['labels']
-    #         outputs = model(input_ids=input_tensor, labels=target_tensor)
-    #         loss = outputs[0]
-    #         loss.backward()
-    #         optim.step()
+def report_gpu():
+    gc.collect()
+    torch.cuda.empty_cache()
 
+
+def main():
+    report_gpu()
     trainer = TransformerTrainer(model, train_dataset, test_dataset)
     save = num_epochs >= 10
     trainer.train(num_epochs, save=save)

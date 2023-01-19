@@ -2,7 +2,9 @@ from operator import itemgetter
 
 import torch
 from torch.nn.utils.rnn import pad_sequence
-from ATNLP.scan_dataset import ScanDataset, Lang
+from scan_dataset import ScanDataset, Lang
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class TransformerLang(Lang):
@@ -37,8 +39,8 @@ class TransformerDataset(ScanDataset):
 
     def convert_to_tensor(self, X, y):
         for i in range(len(X)):
-            X[i] = self.input_lang.tensor_from_sentence(X[i])
-            y[i] = self.output_lang.tensor_from_sentence(y[i])
+            X[i] = self.input_lang.tensor_from_sentence(X[i]).to(device)
+            y[i] = self.output_lang.tensor_from_sentence(y[i]).to(device)
 
         input_tensor, target_tensor = self.collate(X, y)
         return input_tensor, target_tensor
@@ -51,4 +53,6 @@ class TransformerDataset(ScanDataset):
     def collate(self, src_batch, tgt_batch):
         src_batch = pad_sequence(src_batch, padding_value=self.input_lang.PAD_token, batch_first=True)
         tgt_batch = pad_sequence(tgt_batch, padding_value=self.output_lang.PAD_token, batch_first=True)
+        # src_batch.to(device)
+        # tgt_batch.to(device)
         return src_batch, tgt_batch
